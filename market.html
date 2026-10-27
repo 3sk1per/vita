@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Безопасная сделка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:var(--tg-theme-bg-color,#fff);--tx:var(--tg-theme-text-color,#14161a);--hint:var(--tg-theme-hint-color,#7b7f87);--card:var(--tg-theme-secondary-bg-color,#f1f3f6);--btn:var(--tg-theme-button-color,#2f7de1);--btx:var(--tg-theme-button-text-color,#fff);--ok:#2e9e5b;--bad:#d64545}
+@media(prefers-color-scheme:dark){:root{--bg:var(--tg-theme-bg-color,#17181c);--tx:var(--tg-theme-text-color,#f2f3f5);--hint:var(--tg-theme-hint-color,#8d919a);--card:var(--tg-theme-secondary-bg-color,#23252b)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding-top:env(safe-area-inset-top,0px)}
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 8px}
+.seg{display:flex;background:var(--card);border-radius:12px;padding:3px}
+.seg button{flex:1;border:0;background:none;color:var(--hint);font:inherit;font-weight:600;padding:8px 4px;border-radius:10px}
+.seg button.on{background:var(--bg);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.wrap{padding:6px 14px 100px}
+h2{margin:8px 0 12px;font-size:20px}
+.card{background:var(--card);border-radius:16px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
+.card.tap{cursor:pointer}
+.th{width:64px;height:64px;border-radius:12px;background:var(--bg);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px;flex:none}
+.th img{width:100%;height:100%;object-fit:cover}
+.big{width:100%;height:200px;border-radius:16px;font-size:80px;margin-bottom:12px}
+.grow{flex:1;min-width:0}
+.t{font-weight:600}.s{color:var(--hint);font-size:13px}.pr{font-weight:700;white-space:nowrap}
+.bd{display:inline-block;color:#fff;font-size:12px;font-weight:600;border-radius:8px;padding:2px 8px}
+button.main{width:100%;border:0;background:var(--btn);color:var(--btx);font:inherit;font-weight:600;padding:14px;border-radius:14px;margin-top:8px}
+button.main.red{background:var(--bad)}button.main.green{background:var(--ok)}
+button.ghost{width:100%;border:1px solid var(--hint);background:none;color:var(--tx);font:inherit;padding:12px;border-radius:14px;margin-top:8px}
+button.link{border:0;background:none;color:var(--btn);font:inherit;padding:6px 0;margin-bottom:6px}
+input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--card);border:0;border-radius:12px;padding:12px;margin:4px 0 10px}
+label{font-size:13px;color:var(--hint)}
+.nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bg);border-top:1px solid var(--card);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav button{flex:1;border:0;background:none;color:var(--hint);font:inherit;font-weight:600;padding:14px 4px}
+.nav button.on{color:var(--btn)}
+.hint{background:var(--card);border-radius:12px;padding:10px 12px;color:var(--hint);font-size:13px;margin:10px 0}
+.steps{display:flex;margin:14px 0 18px}
+.st{flex:1;text-align:center;font-size:11px;color:var(--hint);position:relative}
+.st i{display:block;width:22px;height:22px;border-radius:50%;background:var(--card);margin:0 auto 4px;line-height:22px;font-style:normal;font-size:12px;position:relative;z-index:1}
+.st:not(:last-child)::after{content:"";position:absolute;top:10px;left:50%;width:100%;height:2px;background:var(--card)}
+.st.done i{background:var(--ok);color:#fff}.st.done::after{background:var(--ok)}
+.st.cur i{background:var(--btn);color:#fff}.st.cur{color:var(--tx)}
+.st.badc i{background:var(--bad);color:#fff}
+.lg{font-size:13px;color:var(--hint);padding:3px 0}
+.empty{color:var(--hint);text-align:center;padding:40px 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+const buzz = t => { try { tg.HapticFeedback.notificationOccurred(t); } catch (e) {} };
+const warn = m => { try { tg.showAlert(m); } catch (e) { alert(m); } };
+
+const FEE = .05, KEY = 'market_v1';
+const SEED = { items: [
+  { id: 1, t: 'Кроссовки Nike Air Max', size: '42', p: 4500, e: '👟', img: '' },
+  { id: 2, t: 'Худи Carhartt', size: 'M', p: 3200, e: '🧥', img: '' },
+  { id: 3, t: 'Джинсы Levi’s 501', size: '32/32', p: 2800, e: '👖', img: '' }], deals: [], ni: 4, nd: 1 };
+let D; try { D = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!D) D = JSON.parse(JSON.stringify(SEED));
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} };
+let U = { role: 'buyer', tab: 'catalog', view: null, rep: false, photo: '' };
+
+const $ = s => document.querySelector(s), app = $('#app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => Number(n).toLocaleString('ru-RU') + ' ₽';
+const net = p => Math.round(p * (1 - FEE));
+const tm = ts => new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+const log = (d, x) => d.log.push({ t: Date.now(), x });
+const ST = { created: ['Ожидает оплаты', '#d9a02b'], paid: ['Оплачено', '#2f7de1'], shipped: ['В пути', '#2f7de1'], completed: ['Завершена', '#2e9e5b'], dispute: ['Спор', '#d64545'], refunded: ['Возврат покупателю', '#7b7f87'] };
+const badge = s => `<span class="bd" style="background:${ST[s][1]}">${ST[s][0]}</span>`;
+const thumb = (it, cls) => `<div class="th ${cls || ''}">${it.img ? `<img src="${it.img}" alt="">` : it.e}</div>`;
+const dealItem = d => D.items.find(i => i.id === d.item) || { e: '📦', img: '' };
+
+function nav() {
+  const tabs = { buyer: [['catalog', 'Каталог'], ['deals', 'Покупки']], seller: [['mine', 'Мои товары'], ['deals', 'Продажи']], admin: [['disputes', 'Споры']] }[U.role];
+  return `<div class="nav">${tabs.map(([k, n]) => `<button data-a="tab:${k}" class="${U.tab === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+}
+
+function dealCard(d) {
+  return `<div class="card tap" data-a="deal:${d.id}">${thumb(dealItem(d))}<div class="grow"><div class="t">${esc(d.t)}</div><div class="s">Сделка #${d.id}</div>${badge(d.status)}</div><div class="pr">${money(d.p)}</div></div>`;
+}
+
+function tabHtml() {
+  if (U.tab === 'catalog') return `<h2>Каталог</h2>` + (D.items.map(i => `<div class="card tap" data-a="item:${i.id}">${thumb(i)}<div class="grow"><div class="t">${esc(i.t)}</div><div class="s">Размер ${esc(i.size)}</div></div><div class="pr">${money(i.p)}</div></div>`).join('') || '<div class="empty">Пока пусто</div>')
+    + `<button class="link" data-a="reset">Сбросить демо-данные</button>`;
+  if (U.tab === 'mine') return `<h2>Мои товары</h2><button class="main" data-a="new">+ Добавить товар</button><div style="height:12px"></div>` + D.items.map(i => `<div class="card">${thumb(i)}<div class="grow"><div class="t">${esc(i.t)}</div><div class="s">Размер ${esc(i.size)}</div></div><div class="pr">${money(i.p)}</div></div>`).join('');
+  if (U.tab === 'deals') return `<h2>${U.role === 'buyer' ? 'Мои покупки' : 'Мои продажи'}</h2>` + (D.deals.slice().reverse().map(dealCard).join('') || '<div class="empty">Сделок пока нет</div>');
+  const ds = D.deals.filter(d => d.status === 'dispute');
+  return `<h2>Споры</h2>` + (ds.map(dealCard).join('') || '<div class="empty">Открытых споров нет</div>');
+}
+
+function itemView(i) {
+  return `<button class="link" data-a="back">← Назад</button>${thumb(i, 'big')}<h2 style="margin:0">${esc(i.t)}</h2><div class="s">Размер ${esc(i.size)}</div><h2>${money(i.p)}</h2>
+  <div class="hint">Деньги замораживаются и уходят продавцу только после того, как вы нажмёте «Заказ получен».</div>`
+    + (U.role === 'buyer' ? `<button class="main" data-a="buy:${i.id}">Купить</button>` : `<div class="hint">Чтобы купить, переключите режим на «Покупатель».</div>`);
+}
+
+function addView() {
+  return `<button class="link" data-a="back">← Назад</button><h2>Новый товар</h2>
+  <label>Название</label><input id="ft" maxlength="60" placeholder="Например: Куртка Zara">
+  <label>Размер</label><input id="fs" maxlength="20" placeholder="M / 42 / 32x32">
+  <label>Цена, ₽</label><input id="fp" type="number" inputmode="numeric" placeholder="3500">
+  <label>Значок</label><select id="fe">${['👕', '🧥', '👖', '👟', '👗', '🧢', '🎒'].map(e => `<option>${e}</option>`).join('')}</select>
+  <label>Фото (необязательно)</label><input id="fph" type="file" accept="image/*"><div class="s" id="phs"></div>
+  <button class="main" data-a="submit">Опубликовать</button>`;
+}
+
+function dealView(d) {
+  const r = U.role, idx = { created: 0, paid: 1, shipped: 2, dispute: 2, completed: 4, refunded: 4 }[d.status];
+  const labels = ['Оплата', 'Отправка', 'В пути', 'Получено'];
+  const steps = labels.map((n, i) => `<div class="st ${i < idx ? 'done' : i === idx ? (d.status === 'dispute' ? 'badc' : 'cur') : ''}"><i>${i < idx ? '✓' : i + 1}</i>${n}</div>`).join('');
+  const frozen = ['paid', 'shipped', 'dispute'].includes(d.status);
+  let money_line = frozen ? `Заморожено у посредника: <b>${money(d.p)}</b>` : d.status === 'completed' ? `Выплата продавцу: <b>${money(net(d.p))}</b> (комиссия ${Math.round(FEE * 100)}%)` : d.status === 'refunded' ? `Возврат покупателю: <b>${money(d.p)}</b>` : `К оплате: <b>${money(d.p)}</b>`;
+  let act = '';
+  if (d.status === 'created') act = r === 'buyer' ? `<button class="main" data-a="pay:${d.id}">Оплатить (тест)</button>` : `<div class="hint">Ждём оплаты покупателя. Для демо переключите режим на «Покупатель».</div>`;
+  if (d.status === 'paid') act = r === 'seller' ? `<label>Трек-номер отправления</label><input id="trk" maxlength="40" placeholder="Например: 1234567890"><button class="main" data-a="track:${d.id}">Товар отправлен</button>` : `<div class="hint">Деньги заморожены. Ждём, пока продавец отправит товар (режим «Продавец»).</div>`;
+  if (d.status === 'shipped') {
+    act = r === 'buyer' ? (U.rep ? `<label>Что не так с вещью?</label><textarea id="rep" rows="3" maxlength="400" placeholder="Опишите проблему"></textarea><button class="main red" data-a="sendbad:${d.id}">Открыть спор</button><button class="ghost" data-a="norep">Отмена</button>`
+      : `<div class="hint">Проверьте вещь. Если не ответите, сделка подтвердится сама через 3 дня.</div><button class="main green" data-a="ok:${d.id}">Заказ получен</button><button class="ghost" data-a="bad">Проблема с товаром</button>`)
+      : `<div class="hint">Товар в пути. Подтвердить получение может покупатель.</div>`;
+    act += `<button class="link" data-a="ff:${d.id}">Демо: перемотать 3 дня</button>`;
+  }
+  if (d.status === 'dispute') act = r === 'admin' ? `<div class="hint">Жалоба: ${esc(d.note || '')}</div><button class="main" data-a="arf:${d.id}">Вернуть деньги покупателю</button><button class="main green" data-a="arp:${d.id}">Выплатить продавцу</button>` : `<div class="hint">Спор открыт, деньги заморожены. Решает администратор (режим «Админ»).</div>`;
+  if (d.status === 'completed') act = `<div class="hint">Сделка завершена.</div>`;
+  if (d.status === 'refunded') act = `<div class="hint">Спор решён в пользу покупателя.</div>`;
+  const it = dealItem(d);
+  return `<button class="link" data-a="back">← Назад</button><div class="card">${thumb(it)}<div class="grow"><div class="t">${esc(d.t)}</div><div class="s">Сделка #${d.id}${d.track ? ' · трек ' + esc(d.track) : ''}</div>${badge(d.status)}</div></div>
+  <div class="steps">${steps}</div><div>${money_line}</div>${act}<h2 style="font-size:16px;margin-top:20px">История</h2>${d.log.map(l => `<div class="lg">${tm(l.t)} · ${esc(l.x)}</div>`).join('')}`;
+}
+
+function render() {
+  let h = `<div class="top"><div class="seg">${[['buyer', 'Покупатель'], ['seller', 'Продавец'], ['admin', 'Админ']].map(([k, n]) => `<button data-a="role:${k}" class="${U.role === k ? 'on' : ''}">${n}</button>`).join('')}</div></div><div class="wrap">`;
+  const v = U.view;
+  if (!v) h += tabHtml();
+  else if (v.t === 'item') h += itemView(D.items.find(i => i.id === v.id));
+  else if (v.t === 'add') h += addView();
+  else h += dealView(D.deals.find(d => d.id === v.id));
+  app.innerHTML = h + '</div>' + (v ? '' : nav());
+  window.scrollTo(0, 0);
+}
+
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b) { const [a, v] = b.dataset.a.split(':'); act(a, v); } });
+document.addEventListener('change', e => {
+  if (e.target.id !== 'fph' || !e.target.files[0]) return;
+  const fr = new FileReader();
+  fr.onload = () => { const im = new Image(); im.onload = () => {
+    const k = Math.min(1, 360 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = im.width * k; c.height = im.height * k;
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); U.photo = c.toDataURL('image/jpeg', .7); $('#phs').textContent = 'Фото добавлено'; }; im.src = fr.result; };
+  fr.readAsDataURL(e.target.files[0]);
+});
+
+function act(a, v) {
+  const d = v && D.deals.find(x => x.id == v);
+  if (a === 'role') { U.role = v; U.tab = { buyer: 'catalog', seller: 'mine', admin: 'disputes' }[v]; U.view = null; U.rep = false; }
+  else if (a === 'tab') U.tab = v;
+  else if (a === 'item') U.view = { t: 'item', id: +v };
+  else if (a === 'deal') { U.view = { t: 'deal', id: +v }; U.rep = false; }
+  else if (a === 'back') { U.view = null; U.rep = false; }
+  else if (a === 'new') { U.view = { t: 'add' }; U.photo = ''; }
+  else if (a === 'reset') { D = JSON.parse(JSON.stringify(SEED)); }
+  else if (a === 'submit') {
+    const t = $('#ft').value.trim(), s = $('#fs').value.trim(), p = parseInt($('#fp').value, 10);
+    if (!t || !s || !(p > 0)) return warn('Заполните название, размер и цену.');
+    D.items.unshift({ id: D.ni++, t, size: s, p, e: $('#fe').value, img: U.photo }); U.view = null; buzz('success');
+  }
+  else if (a === 'buy') {
+    const i = D.items.find(x => x.id == v);
+    const nd = { id: D.nd++, item: i.id, t: i.t, p: i.p, status: 'created', track: '', note: '', log: [] };
+    log(nd, 'Сделка создана'); D.deals.push(nd); U.view = { t: 'deal', id: nd.id };
+  }
+  else if (a === 'pay' && d) { d.status = 'paid'; log(d, 'Оплата получена, деньги заморожены'); buzz('success'); }
+  else if (a === 'track' && d) {
+    const x = ($('#trk').value || '').trim(); if (!x) return warn('Введите трек-номер.');
+    d.status = 'shipped'; d.track = x; log(d, 'Продавец отправил товар, трек ' + x); buzz('success');
+  }
+  else if (a === 'ok' && d) { d.status = 'completed'; log(d, 'Покупатель подтвердил получение, деньги выплачены продавцу'); buzz('success'); }
+  else if (a === 'bad') U.rep = true;
+  else if (a === 'norep') U.rep = false;
+  else if (a === 'sendbad' && d) {
+    const x = ($('#rep').value || '').trim(); if (!x) return warn('Опишите проблему.');
+    d.status = 'dispute'; d.note = x; U.rep = false; log(d, 'Покупатель открыл спор'); buzz('warning');
+  }
+  else if (a === 'ff' && d) { d.status = 'completed'; log(d, 'Прошло 3 дня без ответа: сделка подтверждена автоматически, деньги выплачены продавцу'); }
+  else if (a === 'arf' && d) { d.status = 'refunded'; log(d, 'Администратор вернул деньги покупателю'); }
+  else if (a === 'arp' && d) { d.status = 'completed'; log(d, 'Администратор выплатил деньги продавцу'); }
+  save(); render();
+}
+render();
+</script>
+</body>
+</html>
